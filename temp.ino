@@ -1,30 +1,24 @@
-#include <DHT.h>
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-
-#define DHTPIN D4
+#include "DHT.h"
 #define DHTTYPE DHT11
 
-DHT dht(DHTPIN, DHTTYPE);
-
-void setup()
+#define dht_dpin 2
+DHT dht(dht_dpin, DHTTYPE); 
+void setup(void)
 {
-  Serial.begin(9600);
-  WiFi.begin("The Coffee House","thecoffeehouse");
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.print("connecting");
-    delay(100);
-  }
   dht.begin();
+  Serial.begin(9600);
+  Serial.println("Humidity and temperature\n\n");
+  delay(700);
+
 }
-void loop()
-{
-  float temp = dht.readTemperature();
-  float humid = dht.readHumidity();
-  Serial.print("Temperature: ");
-  Serial.print(temp);
-  Serial.print("Humidity: ");
-  Serial.print(humid);
-  delay(5000);
+void loop() {
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    Serial.print("Current humidity = ");
+    Serial.print(h);
+    Serial.print("%  ");
+    Serial.print("temperature = ");
+    Serial.print(t);
+    Serial.println("C  ");
+  delay(800);
 }
