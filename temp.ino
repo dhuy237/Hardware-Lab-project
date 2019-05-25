@@ -7,9 +7,9 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 //----------------
 #define SS_PIN 2
-#define RST_PIN 0 
+#define RST_PIN 15
 //----------------
-#define dht_dpin 15
+#define dht_dpin 0
 DHT dht(dht_dpin, DHTTYPE);
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
@@ -39,7 +39,8 @@ void loop() {
     lcd.print("H: ");
     lcd.setCursor(11,0);
     lcd.print(h);
-
+    lcd.setCursor(0,1);
+    lcd.print("UID:");
      if ( ! mfrc522.PICC_IsNewCardPresent())
   {
     return;
@@ -56,25 +57,28 @@ void loop() {
   byte letter;
   for (byte i = 0; i < mfrc522.uid.size; i++)
   {
-     Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
-     Serial.print(mfrc522.uid.uidByte[i], HEX);
+     //Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+     //Serial.print(mfrc522.uid.uidByte[i], HEX);
      content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
      content.concat(String(mfrc522.uid.uidByte[i], HEX));
   }
   content.toUpperCase();
-  Serial.println();
+  lcd.setCursor(4,1);
+
+  //Serial.println();
   if (content.substring(1) == "1C C5 DC 73") //change UID of the card that you want to give access
   {
-    Serial.println(" Access Granted ");
-    Serial.println(" Welcome Mr.Huy ");
+    //Serial.println(" Access Granted ");
+    //Serial.println(" Welcome Mr.Huy ");
+    lcd.print("Access")
     delay(1000);
-    Serial.println(" Have FUN ");
-    Serial.println();
+    //Serial.println(" Have FUN ");
+    //Serial.println();
     statuss = 1;
   }
 
   else   {
-    Serial.println(" Access Denied ");
+    lcd.println("Denied ");
     delay(3000);
   }
     delay(800);
