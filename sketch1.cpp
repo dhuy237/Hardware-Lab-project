@@ -47,7 +47,7 @@ int interval = 100;
 int state_new_member = 0;
 unsigned long int time_new_member = 0;
 String cardStorage[5] = {"1C C5 DC 73","","","",""};
-
+int posDelete = 0;
 volatile int counterDog = millis();
 
 void setup()
@@ -60,7 +60,6 @@ void setup()
   lcd.backlight();
   pinMode(buttonPin, INPUT);
   mfrc522.PCD_Init();
-
   //WiFi.begin(ssid,password);
   /*
   while ( WiFi.status() != WL_CONNECTED )
@@ -117,6 +116,11 @@ void menuCard()
   lcd.setCursor(1,0);
   lcd.print("Add Card");
   lcd.setCursor(1,1);
+  lcd.print("Delete Card");
+}
+void menuCard2()
+{
+  lcd.setCursor(1,0);
   lcd.print("Exit");
 }
 void menuScreenUnlock()
@@ -142,7 +146,39 @@ void confirmScreen()
   lcd.setCursor(0,1);
   lcd.print("to confirm!");
 }
-
+void deleteMenu1()
+{
+  lcd.setCursor(1,0);
+  lcd.print("Master");
+  lcd.setCursor(1,1);
+  if (cardStorage[1] != "")
+    lcd.print("Card 1");
+  else
+    lcd.print("Card 1 Empty");
+}
+void deleteMenu2()
+{
+  lcd.setCursor(1,0);
+  if (cardStorage[2] != "")
+    lcd.print("Card 2");
+  else if (cardStorage[2] == "")
+    lcd.print("Card 2 Empty");
+  lcd.setCursor(1,1);
+  if (cardStorage[3] != "")
+    lcd.print("Card 3");
+  else if (cardStorage[3] == "")
+    lcd.print("Card 3 Empty");
+}
+void deleteMenu3()
+{
+  lcd.setCursor(1,0);
+  if (cardStorage[4] != "")
+    lcd.print("Card 4");
+  else if (cardStorage[4] == "")
+    lcd.print("Card 4 Empty");
+  lcd.setCursor(1,1);
+  lcd.print("Exit");
+}
 void moveCursor()
 {
     lcd.setCursor(0, menuCount);
@@ -229,7 +265,11 @@ void addCard()
       cardStorage[pos] = cardContent.substring(1);
       lcd.clear();
       lcd.setCursor(0,0);
-      lcd.print("Add Done");
+      lcd.print("Add card");
+      lcd.setCursor(9,0);
+      lcd.print(pos);
+      lcd.setCursor(11,0);
+      lcd.print("done");
       delay(1000);
       state_new_member = 1;
     }
@@ -251,17 +291,12 @@ void addCard()
     state_new_member = 0;
   }
 }
-void deleteCard()
+void deleteCard(int pos)
 {
-  if(cardContent.substring(1) != "")
+  if (pos != 0)
   {
-     for (int i = 0; i < 5; i++)
-      {
-        if (cardStorage[i] == cardContent.substring(1))
-        {
-          cardStorage[i] = "";
-        }
-      }
+    if (cardStorage[pos] != "")
+      cardStorage[pos] = "";
   }
 }
 void TempAndHumid()
@@ -437,7 +472,7 @@ void stateMachine()
           state = 9;
       }
       break;
-    case 8: //card management menu - exit
+    case 8: //card management menu - delete
       menuCard();
       moveCursor();
       if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
@@ -446,7 +481,7 @@ void stateMachine()
           buttonState = 0;
           lcd.clear();
           menuCount = 0;
-          state = 7;
+          state = 10;
       }
       if (counter1 == 1 && menuCount == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
       {
@@ -454,7 +489,7 @@ void stateMachine()
           buttonState1 = 0;
           lcd.clear();
           menuCount = 0;
-          state = 2;
+          state = 11;
       }
       break;
     case 9: //add card menu
@@ -488,7 +523,199 @@ void stateMachine()
           menuCount = 0;
           state = 7;
       }
+      break;
+    case 10: //card management menu - exit
+      menuCard2();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 7;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 6;
+      }
+      break;
+    case 11: //delete menu 1 - master
+      deleteMenu1();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 1;
+          state = 12;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 17;
+      }
+      break;
+    case 12: //delete menu 1 - user 1
+      deleteMenu1();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 13;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          lcd.clear();
+          counter1 = 0;
+          buttonState1 = 0;
+          menuCount = 0;
+          posDelete = 1;
+          state = 18;
+      }
+      break;
+    case 13: //delete menu 2 - user 2
+      deleteMenu2();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 1;
+          state = 14;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          lcd.clear();
+          counter1 = 0;
+          buttonState1 = 0;
+          menuCount = 0;
+          posDelete = 2;
+          state = 18;
+      }
+      break;
+    case 14: //delete menu 2 - user 3
+      deleteMenu2();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 15;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          lcd.clear();
+          counter1 = 0;
+          buttonState1 = 0;
+          menuCount = 0;
+          posDelete = 3;
+          state = 18;
+      }
+      break;
+    case 15: //delete menu 3 - user 4
+      deleteMenu3();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 1;
+          state = 16;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          lcd.clear();
+          counter1 = 0;
+          buttonState1 = 0;
+          menuCount = 0;
+          posDelete = 4;
+          state = 18;
+      }
+      break;
+    case 16: //delete menu 3 - user 4
+      deleteMenu3();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 11;
+      }
+      if (counter1 == 1 && menuCount == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 8;
+      }
+      break;
+    case 17:
+      lcd.setCursor(0,0);
+      lcd.print("Cannot delete");
+      lcd.setCursor(0,1);
+      lcd.print("Master card");
+      delay(1000);
+      lcd.clear();
+      state = 11;
+      break;
+    case 18:
+      readCard();
 
+      if(cardStorage[posDelete] != "")
+      {
+        lcd.setCursor(0,0);
+        lcd.print("Use MASTER card");
+        lcd.setCursor(0,1);
+        lcd.print("to confirm!");
+        if (cardContent.substring(1) == "1C C5 DC 73")
+        {
+          lcd.clear();
+          deleteCard(posDelete);
+          lcd.setCursor(0,0);
+          lcd.print("Delete");
+          lcd.setCursor(0,1);
+          lcd.print("card");
+          lcd.setCursor(5,1);
+          lcd.print(posDelete);
+          lcd.setCursor(7,1);
+          lcd.print("done");
+          delay(1000);
+          lcd.clear();
+          posDelete = 0;
+          state = 11;
+        }
+      }
+      else if (cardStorage[posDelete] == "")
+      {
+        state = 11;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 11;
+      }
       break;
   }
 }
