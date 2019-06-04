@@ -275,9 +275,32 @@ void addCard()
     }
     if (checkCard() && state_new_member == 0)
     {
+      int pos = 0;
+      for (int i = 0; i < 5; i++)
+      {
+        if (cardStorage[i] == cardContent.substring(1))
+        {
+          pos = i;
+        }
+      }
       lcd.clear();
       lcd.setCursor(0,0);
-      lcd.print("Existed");
+      lcd.print("Card existed");
+
+      if (pos == 0)
+      {
+        lcd.setCursor(5,1);
+        lcd.print("Card");
+        lcd.setCursor(10,1);
+        lcd.print("MASTER");
+      }
+      else if (pos != 0)
+      {
+        lcd.setCursor(10,1);
+        lcd.print("Card");
+        lcd.setCursor(15,1);
+        lcd.print(pos);
+      }
       delay(1000);
       state_new_member = 1;
     }
