@@ -6,29 +6,33 @@
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-
+#include <EEPROM.h>
+#include <SoftwareSerial.h>
+#include <PubSubClient.h>
 #define SS_PIN D8
 #define RST_PIN 0
 #define dht_dpin 3
 #define DHTTYPE DHT11
 #define buttonPin A0
-
+#define TXSIM D3
+#define RXSIM D0
 Ticker secondtick;
 DHT dht(dht_dpin, DHTTYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-
+SoftwareSerial mySerial(TXSIM, RXSIM);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
-const char *ssid = "Duong Huy";
-const char *password = "0903059497";
+const char *ssid = "Tommmm";
+const char *password = "12345678";
 
 const long utcTime = 25200;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", utcTime);
-
+WiFiClient c;
+int pass = 0;
 int cardStatus = 0; //for rfid card
 String cardContent = "";
-
+String content_mqtt ="";
 float humid = 0; //for humidity and temperature sensor
 float temp = 0;
 
@@ -50,36 +54,7 @@ String cardStorage[5] = {"1C C5 DC 73","","","",""};
 int posDelete = 0;
 volatile int counterDog = millis();
 
-void setup()
-{
-  SPI.begin();
-  dht.begin();
 
-  lcd.begin(16,2);
-  lcd.init();
-  lcd.backlight();
-  pinMode(buttonPin, INPUT);
-  mfrc522.PCD_Init();
-  //WiFi.begin(ssid,password);
-  /*
-  while ( WiFi.status() != WL_CONNECTED )
-  {
-    delay ( 500 );
-    Serial.print ( "." );
-  }
-  */
-  //timeClient.begin();
-
-  secondtick.attach(1, watchdog);
-  Serial.begin(9600);
-}
-
-void loop()
-{
-  button();
-  stateMachine();
-  counterDog = millis();
-}
 
 void watchdog()
 {
@@ -110,6 +85,8 @@ void menuScreen2()
 {
   lcd.setCursor(1,0);
   lcd.print("Card Management");
+  lcd.setCursor(1,1);
+  lcd.print("WiFi Settings");
 }
 void menuCard()
 {
@@ -179,6 +156,17 @@ void deleteMenu3()
   lcd.setCursor(1,1);
   lcd.print("Exit");
 }
+void wifiMenu()
+{
+  lcd.setCursor(1,0);
+  lcd.print("WiFi:");
+  if(WiFi.status() == WL_CONNECTED)
+    lcd.print("CONNECTED");
+  else
+    lcd.print("DISCONNECTED");
+  lcd.setCursor(1,1);
+  lcd.print("Exit");
+}
 void moveCursor()
 {
     lcd.setCursor(0, menuCount);
@@ -198,37 +186,6 @@ void readCard()
     cardContent.concat(String(mfrc522.uid.uidByte[i], HEX));
   }
   cardContent.toUpperCase();
-  /*
-  for (int i = 0; i < 5; i++)
-  {
-        if (cardStorage[i] == cardContent.substring(1))
-        {
-          lcd.clear();
-          lcd.setCursor(0,0);
-          lcd.print("Read Done");
-          delay(100);
-          cardStatus = 1;
-          cardContent = "";
-        }
-  }*/
-  /*
-  if(cardContent.substring(1) == "1C C5 DC 73" && cardStatus == 0)
-  {
-    cardStatus = 1;
-    cardContent = "";
-  }
-
-  else
-  {
-    lcd.clear();
-    lcd.print("ERRORERRORERRORE");
-    lcd.setCursor(0,1);
-    lcd.print("ERRORERRORERRORE");
-    cardContent = "";
-    cardStatus = 0;
-    lcd.clear();
-  }
-  */
 }
 bool checkCard()
 {
@@ -246,7 +203,7 @@ bool checkCard()
 }
 int findSlot()
 {
-  for (int i = 0; i < 5; i++)
+  for (int i = 1; i < 5; i++)
   {
     if (cardStorage[i] == "")
     {
@@ -254,6 +211,52 @@ int findSlot()
     }
   }
   return 5;
+}
+void addCard_ROM(int pos, String member)
+{
+  for(int i = 0; i < 11; i++)
+  {
+    EEPROM.write(pos + i, member[i]);
+  }
+  EEPROM.write(pos + 11, '\0');
+  EEPROM.commit();
+  Serial.print(readCard_ROM( pos));
+}
+String readCard_ROM(int pos)
+{
+  char new_member[100];
+  int nextPos = 0;
+  unsigned char temp;
+  temp = EEPROM.read(pos);
+  while ((37 < temp && temp  < 58) || (64 < temp && temp < 123) || temp == 32)
+  {
+    temp = EEPROM.read(pos + nextPos);
+    new_member[nextPos] = temp;
+
+    //Serial.print(new_member[nextPos]);
+
+    nextPos++;
+  }
+
+  new_member[nextPos] = '\0';
+  Serial.println(new_member);
+  return String(new_member);
+}
+void addAllMember()
+{
+  for (int i = 1; i < 5; i++)
+  {
+    int add = i*20 + 100;
+    cardStorage[i] = readCard_ROM(add);
+  }
+}
+void deleteCard_ROM(int pos)
+{
+  for(int i = 0; i < 12; i++)
+  {
+    EEPROM.write(pos + i, '\0');
+  }
+  EEPROM.commit();
 }
 void addCard()
 {
@@ -263,6 +266,8 @@ void addCard()
     {
       int pos = findSlot();
       cardStorage[pos] = cardContent.substring(1);
+      Serial.println(cardStorage[pos]);
+      addCard_ROM(pos*20 + 100, cardStorage[pos]);
       lcd.clear();
       lcd.setCursor(0,0);
       lcd.print("Add card");
@@ -272,6 +277,8 @@ void addCard()
       lcd.print("done");
       delay(1000);
       state_new_member = 1;
+      Serial.println(cardStorage[pos]);
+      readCard_ROM(pos*20 + 100);
     }
     if (checkCard() && state_new_member == 0)
     {
@@ -311,7 +318,7 @@ void addCard()
     lcd.setCursor(0,0);
     lcd.print("Full");
     delay(1000);
-    state_new_member = 0;
+    state_new_member = 1;
   }
 }
 void deleteCard(int pos)
@@ -322,12 +329,76 @@ void deleteCard(int pos)
       cardStorage[pos] = "";
   }
 }
+
 void TempAndHumid()
 {
   humid = dht.readHumidity();
   temp = dht.readTemperature();
 }
 
+void send_message(String str) {
+  mySerial.println("AT+CMGF=1\r\n");
+  delay(200);
+  mySerial.println("AT+CMGS=\"+84788966736\"\r\n");
+  delay(200);
+  mySerial.print(str);
+  delay(200);
+  while(mySerial.available()){
+    mySerial.read();
+  }
+  mySerial.write(26);
+  delay(1000);
+  String checkStr="";
+  while(mySerial.available()){
+    char c = mySerial.read();
+    if(c!='\r'&&c!='\n')
+    checkStr+=c;
+  }
+  char temptemp[16];
+  checkStr.toCharArray(temptemp , 16);
+}
+void getdata(char * tp, byte *nd, unsigned int length)
+{
+ String topic(tp);
+ String cmd = String((char*)nd);
+ cmd.remove(length);
+ if(topic == "unlock")
+ {
+    if(cmd == "123")
+    {
+      pass = 1;
+      content_mqtt = "1C C5 DC 73";
+    }
+    else
+      pass = 0;
+ }
+}
+PubSubClient TempControl("m16.cloudmqtt.com", 11875 , getdata, c);
+
+void WiFiset()
+{
+  int state_wifi = 0;
+  //unsigned long int time_check_wifi = millis();
+  WiFi.begin(ssid, password);
+  unsigned long int time_check = millis();
+  while(WiFi.status() != WL_CONNECTED && millis() - time_check < 5000)
+  {
+    Serial.print("*");
+    delay(100);
+  }
+  time_check = millis();
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    while(!TempControl.connect("Temperature control", "doaaiktw", " 1DznqNdzgtWb") && millis() - time_check < 6000){
+      Serial.print("/");
+      delay(100);}
+      Serial.println("MQTT done");
+      TempControl.subscribe("unlock");
+      TempControl.publish("unlock","Success");
+      delay(500);
+  }
+
+}
 
 void button()
 {
@@ -362,12 +433,14 @@ void stateMachine()
 {
   switch(state)
   {
+
     case 1: //lock screen
       menuScreenUnlock();
       readCard();
+
       if (checkCard())
         cardStatus = 1;
-      if (cardStatus == 1)
+      if (cardStatus == 1 || pass == 1)
       {
         lcd.clear();
         state = 2;
@@ -445,6 +518,14 @@ void stateMachine()
       break;
     case 5: // call send message function
       //send messages
+      {
+      humid = dht.readHumidity();
+      temp = dht.readTemperature();
+      String temp_humid = (String) humid;
+      String temp_temp = (String) temp;
+      String SMS = "";
+      SMS += "Temperature: " + temp_temp + ". Humidity: " + temp_humid;
+      send_message(SMS);
       lcd.print("Sending...");
       delay(1000);
       lcd.clear();
@@ -454,6 +535,7 @@ void stateMachine()
       state = 2;
       counterDog = millis();
       break;
+      }
     case 6: //main menu - page 2 - card management
       menuScreen2();
       moveCursor();
@@ -462,8 +544,8 @@ void stateMachine()
           counter = 0;
           buttonState = 0;
           lcd.clear();
-          menuCount = 0;
-          state = 2;
+          menuCount = 1;
+          state = 19;
       }
       if (counter1 == 1 && menuCount == 0)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
       {
@@ -520,7 +602,9 @@ void stateMachine()
       lcd.print("Scan your card!");
       readCard();
       if (state_new_member == 0)
+      {
         addCard();
+      }
       /*
       if (state_new_member == 0)
       {
@@ -713,6 +797,7 @@ void stateMachine()
         {
           lcd.clear();
           deleteCard(posDelete);
+          deleteCard_ROM(posDelete*20 + 1);
           lcd.setCursor(0,0);
           lcd.print("Delete");
           lcd.setCursor(0,1);
@@ -740,5 +825,126 @@ void stateMachine()
           state = 11;
       }
       break;
+    case 19:
+      menuScreen2();
+      moveCursor();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 2;
+      }
+      if (counter1 == 1 && menuCount == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 20;
+      }
+      break;
+    case 20:
+      moveCursor();
+      wifiMenu();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 1;
+          state = 21;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 22;
+      }
+      break;
+    case 21:
+      moveCursor();
+      wifiMenu();
+      if (counter == 1) //if (buttonValue >= 350 && buttonValue <= 400)
+      {
+          counter = 0;
+          buttonState = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 20;
+      }
+      if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+      {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 1;
+      }
+      break;
+    case 22:
+      if (WiFi.status() == WL_CONNECTED)
+      {
+        lcd.clear();
+        lcd.print("   connected    ");
+        delay(1500);
+        counter1 = 0;
+        buttonState1 = 0;
+        lcd.clear();
+        menuCount = 0;
+        state = 21;
+        return;
+      }
+      WiFiset();
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("    checking    ");
+      while(WiFi.status() != WL_CONNECTED)
+      {
+        delay(100);
+        if (counter1 == 1)// if (buttonValue >= 850 && buttonValue <= 880 && menuCount == 1)
+        {
+          counter1 = 0;
+          buttonState1 = 0;
+          lcd.clear();
+          menuCount = 0;
+          state = 21;
+        }
+        break;
+      }
+      break;
+
   }
+}
+
+
+void setup()
+{
+  SPI.begin();
+  dht.begin();
+  Serial.begin(9600);
+  lcd.begin(16,2);
+  lcd.init();
+  lcd.backlight();
+  pinMode(buttonPin, INPUT);
+  mfrc522.PCD_Init();
+  EEPROM.begin(512);
+  WiFiset();
+
+  //timeClient.begin();
+  addAllMember();
+
+  secondtick.attach(1, watchdog);
+
+}
+
+void loop()
+{
+  TempControl.loop();
+  button();
+  stateMachine();
+  counterDog = millis();
 }
