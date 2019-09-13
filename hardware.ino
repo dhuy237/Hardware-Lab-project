@@ -22,8 +22,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 SoftwareSerial mySerial(TXSIM, RXSIM);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
-const char *ssid = "Aquarium";
-const char *password = "lenguyenankhuong";
+const char *ssid = "";
+const char *password = "";
 
 const long utcTime = 25200;
 WiFiUDP ntpUDP;
